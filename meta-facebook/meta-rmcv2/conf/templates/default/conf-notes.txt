@@ -1,0 +1,2 @@
+Common targets are:
+    rmcv2-image
