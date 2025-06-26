@@ -1,0 +1,456 @@
+From 3e3a66969fc80c930bd243b0684fc74f859cdc44 Mon Sep 17 00:00:00 2001
+From: Kyle Hsieh <Kyle.Hsieh@quantatw.com>
+Date: Thu, 26 Jun 2025 10:28:27 +0800
+Subject: [PATCH] ARM: dts: aspeed: rmcv2: Add Meta rmcv2 BMC
+
+---
+ arch/arm/boot/dts/aspeed/Makefile             |   1 +
+ .../dts/aspeed/aspeed-bmc-facebook-rmcv2.dts  | 424 ++++++++++++++++++
+ 2 files changed, 425 insertions(+)
+ create mode 100644 arch/arm/boot/dts/aspeed/aspeed-bmc-facebook-rmcv2.dts
+
+diff --git a/arch/arm/boot/dts/aspeed/Makefile b/arch/arm/boot/dts/aspeed/Makefile
+index b3170fdd3096..37b53ae8606a 100644
+--- a/arch/arm/boot/dts/aspeed/Makefile
++++ b/arch/arm/boot/dts/aspeed/Makefile
+@@ -28,6 +28,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
+ 	aspeed-bmc-facebook-minerva.dtb \
+ 	aspeed-bmc-facebook-minipack.dtb \
+ 	aspeed-bmc-facebook-tiogapass.dtb \
++	aspeed-bmc-facebook-rmcv2.dtb \
+ 	aspeed-bmc-facebook-wedge40.dtb \
+ 	aspeed-bmc-facebook-wedge100.dtb \
+ 	aspeed-bmc-facebook-wedge400.dtb \
+diff --git a/arch/arm/boot/dts/aspeed/aspeed-bmc-facebook-rmcv2.dts b/arch/arm/boot/dts/aspeed/aspeed-bmc-facebook-rmcv2.dts
+new file mode 100644
+index 000000000000..0c5605903229
+--- /dev/null
++++ b/arch/arm/boot/dts/aspeed/aspeed-bmc-facebook-rmcv2.dts
+@@ -0,0 +1,424 @@
++// SPDX-License-Identifier: GPL-2.0+
++// Copyright (c) 2023 Facebook Inc.
++/dts-v1/;
++
++#include "aspeed-g6.dtsi"
++#include <dt-bindings/i2c/i2c.h>
++#include <dt-bindings/gpio/aspeed-gpio.h>
++
++/ {
++	model = "Facebook rmcv2 RMC";
++	compatible = "facebook,rmcv2-rmc", "aspeed,ast2600";
++
++	aliases {
++		serial4 = &uart5;
++	};
++
++	chosen {
++		stdout-path = "serial4:57600n8";
++	};
++
++	iio-hwmon {
++		compatible = "iio-hwmon";
++		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
++			      <&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
++			      <&adc1 2>;
++	};
++
++
++	memory@80000000 {
++		device_type = "memory";
++		reg = <0x80000000 0x80000000>;
++	};
++
++	p2v5_bmc_aux: regulator-p2v5-bmc-aux {
++		compatible = "regulator-fixed";
++		regulator-name = "p2v5_bmc_aux";
++		regulator-min-microvolt = <2500000>;
++		regulator-max-microvolt = <2500000>;
++		regulator-always-on;
++	};
++
++    spi1_gpio: spi {
++		compatible = "spi-gpio";
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		sck-gpios = <&gpio0 ASPEED_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
++		mosi-gpios = <&gpio0 ASPEED_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
++		miso-gpios = <&gpio0 ASPEED_GPIO(Z, 5) GPIO_ACTIVE_HIGH>;
++		cs-gpios = <&gpio0 ASPEED_GPIO(Z, 0) GPIO_ACTIVE_LOW>;
++		num-chipselects = <1>;
++
++		tpm@0 {
++			compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
++			spi-max-frequency = <33000000>;
++			reg = <0>;
++		};
++	};
++};
++
++&adc0 {
++	vref-supply = <&p2v5_bmc_aux>;
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
++		&pinctrl_adc2_default &pinctrl_adc3_default
++		&pinctrl_adc4_default &pinctrl_adc5_default
++		&pinctrl_adc6_default &pinctrl_adc7_default>;
++
++};
++
++&adc1 {
++	vref-supply = <&p2v5_bmc_aux>;
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_adc10_default>;
++};
++
++&ehci0 {
++	status = "okay";
++};
++
++&ehci1 {
++	status = "okay";
++};
++
++&fmc {
++	status = "okay";
++	flash@0 {
++		status = "okay";
++		m25p,fast-read;
++		label = "bmc";
++		spi-max-frequency = <50000000>;
++#include "openbmc-flash-layout-128.dtsi"
++	};
++	flash@1 {
++		status = "okay";
++		m25p,fast-read;
++		label = "alt-bmc";
++		spi-max-frequency = <50000000>;
++	};
++};
++
++&spi2 {
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_spi2_default>;
++
++// BIOS Flash
++	flash@0 {
++		status = "okay";
++		m25p,fast-read;
++		label = "pnor";
++		spi-max-frequency = <12000000>;
++		spi-tx-bus-width = <2>;
++		spi-rx-bus-width = <2>;
++	};
++};
++
++&i2c0 {
++	status = "okay";
++};
++
++&i2c1 {
++	status = "okay";
++};
++
++&i2c2 {
++	status = "okay";
++};
++
++&i2c3 {
++	status = "okay";
++};
++
++&i2c4 {
++	status = "okay";
++};
++
++&i2c5 {
++	status = "okay";
++};
++
++&i2c6 {
++	status = "okay";
++};
++
++&i2c7 {
++	status = "okay";
++	bus-frequency = <100000>;
++	multi-master;
++	aspeed,hw-timeout-ms = <1000>;
++
++	//USB Debug Connector
++	ipmb@10 {
++		compatible = "ipmb-dev";
++		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
++		i2c-protocol;
++	};
++};
++
++&i2c8 {
++        status = "okay";
++};
++
++&i2c9 {
++	status = "okay";
++
++    // SCM TEMP SENSOR
++	temperature-sensor@4b {
++		compatible = "ti,tmp75";
++		reg = <0x4b>;
++	};
++
++    // SCM FRU EEPROM
++	eeprom@50 {
++		compatible = "atmel,24c128";
++		reg = <0x50>;
++	};
++
++    // BSM FRU EEPROM
++	eeprom@56 {
++		compatible = "atmel,24c64";
++		reg = <0x56>;
++	};
++};
++
++&i2c10 {
++	status = "okay";
++};
++
++&i2c11 {
++        status = "okay";
++};
++
++&i2c12 {
++        status = "okay";
++};
++
++&i2c13 {
++        status = "okay";
++};
++
++&i2c14 {
++	status = "okay";
++};
++
++&i2c15 {
++	status = "okay";
++};
++
++&mdio0 {
++	status = "okay";
++};
++
++&mac3 {
++	status = "okay";
++	phy-mode = "rmii";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_rmii4_default>;
++	fixed-link {
++		speed = <100>;
++		full-duplex;
++	};
++};
++
++&uhci {
++	status = "okay";
++};
++
++&gpio0 {
++	gpio-line-names =
++	/*A0-A7*/	"","","","","","","","",
++	/*B0-B7*/	"","","","","","","","",
++	/*C0-C7*/	"","","","","","","","",
++	/*D0-D7*/	"","","","","","","","",
++	/*E0-E7*/	"","","","","","","","",
++	/*F0-F7*/	"","","","","","","","",
++	/*G0-G7*/	"","","","","","","","",
++	/*H0-H7*/	"","","","","","","","",
++	/*I0-I7*/	"","","","","","","","",
++	/*J0-J7*/	"","","","","","","","",
++	/*K0-K7*/	"","","","","","","","",
++	/*L0-L7*/	"","","","","","","","",
++	/*M0-M7*/	"","","","","","","","",
++	/*N0-N7*/	"","","","","","","","",
++	/*O0-O7*/	"","","","","","","","",
++	/*P0-P7*/	"","","","","","","","",
++	/*Q0-Q7*/	"","","","","","","","",
++	/*R0-R7*/	"","","","","","","","",
++	/*S0-S7*/	"","","","","","","","",
++	/*T0-T7*/	"","","","","","","","",
++	/*U0-U7*/	"","","","","","","","",
++	/*V0-V7*/	"","","","","","","","",
++	/*W0-W7*/	"","","","","","","","",
++	/*X0-X7*/	"","","","","","","","",
++	/*Y0-Y7*/	"","","","","","","","",
++	/*Z0-Z7*/	"","","","","","","","";
++};
++
++&sgpiom0 {
++	status = "okay";
++	ngpios = <128>;
++	bus-frequency = <2000000>;
++	gpio-line-names =
++    /*"input pin","output pin"*/
++	/*A0 - A7*/ 
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*B0 - B7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*C0 - C7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*D0 - D7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*E0 - E7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*F0 - F7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*G0 - G7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*H0 - H7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*I0 - I7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*J0 - J7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*K0 - K7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*L0 - L7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*M0 - M7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*N0 - N7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*O0 - O7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++    /*P0 - P7*/
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","",
++	"","";
++};
++
++&wdt1 {
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_wdtrst1_default>;
++	aspeed,reset-type = "soc";
++	aspeed,external-signal;
++	aspeed,ext-push-pull;
++	aspeed,ext-active-high;
++	aspeed,ext-pulse-duration = <256>;
++};
+-- 
+2.34.1
+
